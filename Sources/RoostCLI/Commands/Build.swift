@@ -28,12 +28,8 @@ struct Build: AsyncParsableCommand {
     // MARK: - Standard Build
 
     private func runBuild(cwd: String) async throws {
-        let tailwindBinary = (cwd as NSString).appendingPathComponent(".build/tailwindcss")
-        let tailwindConfig = (cwd as NSString).appendingPathComponent("tailwind.config.js")
-        let fm = FileManager.default
-
         // If Tailwind is configured, compile CSS first
-        if fm.fileExists(atPath: tailwindBinary) && fm.fileExists(atPath: tailwindConfig) {
+        if let tailwindBinary = Self.tailwindBinary(in: cwd) {
             RoostUI.noora.info(.alert("Compiling Tailwind CSS..."))
 
             let tailwindProcess = Process()
@@ -51,7 +47,7 @@ struct Build: AsyncParsableCommand {
             guard tailwindProcess.terminationStatus == 0 else {
                 RoostUI.noora.error(.alert(
                     "Tailwind CSS compilation failed.",
-                    takeaways: ["Check your tailwind.config.js and input.css for errors."]
+                    takeaways: ["Check Public/css/input.css for errors."]
                 ))
                 throw ExitCode.failure
             }
@@ -115,11 +111,7 @@ struct Build: AsyncParsableCommand {
             print("[roost] Build complete. (\(String(format: "%.1f", duration))s)")
 
             // Start Tailwind watch if configured
-            let tailwindBinary = (cwd as NSString).appendingPathComponent(".build/tailwindcss")
-            let tailwindConfig = (cwd as NSString).appendingPathComponent("tailwind.config.js")
-            if FileManager.default.fileExists(atPath: tailwindBinary)
-                && FileManager.default.fileExists(atPath: tailwindConfig)
-            {
+            if let tailwindBinary = Self.tailwindBinary(in: cwd) {
                 processManager.startTailwind(binary: tailwindBinary, cwd: cwd)
             }
 
@@ -163,16 +155,25 @@ struct Build: AsyncParsableCommand {
         watcher.start() // Blocks until process exits
     }
 
+    // MARK: - Tailwind
+
+    /// The project's Tailwind binary, when it also has a `Public/css/input.css` entry point.
+    private static func tailwindBinary(in cwd: String) -> String? {
+        let binary = (cwd as NSString).appendingPathComponent(".build/tailwindcss")
+        let input = (cwd as NSString).appendingPathComponent("Public/css/input.css")
+        guard FileManager.default.fileExists(atPath: binary),
+              let css = try? String(contentsOfFile: input, encoding: .utf8) else { return nil }
+        if css.contains("@tailwind base") {
+            print("[roost] Public/css/input.css uses Tailwind v3 directives, which Tailwind v4 ignores. Replace them with: @import \"tailwindcss\";")
+        }
+        return binary
+    }
+
     // MARK: - Synchronous Build Helper
 
     private func runBuildSync(cwd: String) -> Bool {
-        let tailwindBinary = (cwd as NSString).appendingPathComponent(".build/tailwindcss")
-        let tailwindConfig = (cwd as NSString).appendingPathComponent("tailwind.config.js")
-
         // Tailwind compilation if configured
-        if FileManager.default.fileExists(atPath: tailwindBinary)
-            && FileManager.default.fileExists(atPath: tailwindConfig)
-        {
+        if let tailwindBinary = Self.tailwindBinary(in: cwd) {
             let tw = Process()
             tw.executableURL = URL(fileURLWithPath: tailwindBinary)
             tw.arguments = ["-i", "Public/css/input.css", "-o", "Public/css/app.css", "--minify"]

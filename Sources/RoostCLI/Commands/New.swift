@@ -239,7 +239,7 @@ struct New: AsyncParsableCommand {
         // Download Tailwind binary
         let binaryName = Platform.tailwindBinaryName
         let tailwindURL = URL(
-            string: "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/\(binaryName)"
+            string: "https://github.com/tailwindlabs/tailwindcss/releases/download/\(Platform.tailwindVersion)/\(binaryName)"
         )!
         let tailwindDestination = (projectDir as NSString).appendingPathComponent(".build/tailwindcss")
 
@@ -266,14 +266,7 @@ struct New: AsyncParsableCommand {
             ))
         }
 
-        // Create tailwind.config.js
-        try FileCreator.create(
-            at: "tailwind.config.js",
-            in: projectDir,
-            content: ProjectTemplates.tailwindConfig(appName: appName)
-        )
-
-        // Create input.css with Tailwind directives
+        // Tailwind v4 is configured in CSS and detects template sources itself.
         try FileCreator.create(
             at: "Public/css/input.css",
             in: projectDir,
