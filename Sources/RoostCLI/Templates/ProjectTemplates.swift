@@ -63,9 +63,12 @@ enum ProjectTemplates {
         let ecosystem = ProcessInfo.processInfo.environment["ROOST_ECOSYSTEM_PATH"]
         let frameworkPath = ProcessInfo.processInfo.environment["ROOST_FRAMEWORK_PATH"]
             ?? ecosystem.map { "\\($0)/Roost" }
+        // RichTerminal gives `roost spectro` colors, spinners, and styled tables.
+        // Remove it to skip downloading Noora; spectro then prints plain text.
+        let roostTraits: Set<Package.Dependency.Trait> = [.defaults, "RichTerminal"]
         let frameworkDependency: Package.Dependency = frameworkPath.map {
-            .package(name: "swift-roost", path: $0)
-        } ?? .package(url: "https://github.com/roost-framework/swift-roost", from: "\(RoostCLI.frameworkVersion)")
+            .package(name: "swift-roost", path: $0, traits: roostTraits)
+        } ?? .package(url: "https://github.com/roost-framework/swift-roost", from: "\(RoostCLI.frameworkVersion)", traits: roostTraits)
         let eswPath = ProcessInfo.processInfo.environment["ROOST_ESW_PATH"]
             ?? ecosystem.map { "\\($0)/esw" }
         let eswDependency: Package.Dependency = eswPath.map {

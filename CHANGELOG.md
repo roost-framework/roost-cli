@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.1
+
+- `roost new` writes apps that depend on swift-roost 2.1.3 or later with its
+  `RichTerminal` trait, so `roost spectro` shows Spectro's colors, spinners,
+  and styled tables again. Remove `"RichTerminal"` from `roostTraits` in the
+  generated `Package.swift` to skip downloading Noora.
+- `roost new --tailwind` generates a working Tailwind v4 setup: `@import
+  "tailwindcss";` in `Public/css/input.css` and no `tailwind.config.js`.
+  Earlier projects compiled an almost empty stylesheet because the generated
+  v3 setup is ignored by v4. The Tailwind binary is pinned to v4.3.3, and
+  `roost server` and `roost build` warn when `input.css` still uses the v3
+  `@tailwind` directives.
+
 ## 2.1.0
 
 The first release of the `roost` CLI as its own package. It previously shipped

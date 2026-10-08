@@ -10,7 +10,7 @@ You need Swift 6.3 or later on macOS 14+ or Linux.
 
 ```sh
 brew install mint
-mint install roost-framework/roost-cli@2.1.0
+mint install roost-framework/roost-cli@2.1.1
 roost --version
 ```
 
@@ -20,7 +20,7 @@ Without Mint, for example on Linux, build from a checkout and copy
 `.build/release/roost` to a directory on your `PATH`:
 
 ```sh
-git clone --branch 2.1.0 --depth 1 https://github.com/roost-framework/roost-cli.git
+git clone --branch 2.1.1 --depth 1 https://github.com/roost-framework/roost-cli.git
 cd roost-cli
 swift build -c release --product roost
 ```
@@ -44,7 +44,10 @@ Actions decode input with `conn.permit`, so only the input type's fields can be
 set. `roost gen auth` writes `RegistrationController` and `SessionController`,
 routed from `Routes/AuthRoutes.swift`.
 
-Generated apps depend on swift-roost 2.1.0 or later. Spectro, Nexus, and ESW
+Generated apps depend on swift-roost 2.1.3 or later with its `RichTerminal`
+trait, which gives `roost spectro` colors, spinners, and styled tables. Remove
+`"RichTerminal"` from `roostTraits` in the app's `Package.swift` to skip
+downloading Noora; `roost spectro` then prints plain text. Spectro, Nexus, and ESW
 arrive through SwiftPM as the app's own dependencies; there is nothing else to
 install. `roost spectro <arguments>` runs the `spectro` executable from those
 dependencies, so its version always matches the app's `Package.resolved`. ESW
