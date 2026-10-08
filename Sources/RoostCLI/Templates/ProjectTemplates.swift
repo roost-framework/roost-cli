@@ -230,27 +230,11 @@ enum ProjectTemplates {
         """
     }
 
-    // MARK: - Tailwind config
-
-    static func tailwindConfig(appName: String) -> String {
-        """
-        /** @type {import('tailwindcss').Config} */
-        module.exports = {
-          content: ["./Sources/\(appName)/Views/**/*.{esw,hesw}"],
-          theme: {
-            extend: {},
-          },
-          plugins: [],
-        }
-        """
-    }
-
     // MARK: - Tailwind input CSS
 
+    /// Tailwind v4 scans the project, including .esw and .hesw templates, for class names.
     static let tailwindInputCSS = """
-    @tailwind base;
-    @tailwind components;
-    @tailwind utilities;
+    @import "tailwindcss";
     """
 
     // MARK: - .gitignore
