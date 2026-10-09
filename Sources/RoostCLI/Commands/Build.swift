@@ -3,12 +3,6 @@ import Foundation
 import CoreFoundation
 @preconcurrency import Noora
 
-#if os(Linux)
-let streamSocket = Int32(SOCK_STREAM.rawValue)
-#else
-let streamSocket = SOCK_STREAM
-#endif
-
 struct Build: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "build",
@@ -174,22 +168,11 @@ struct Build: AsyncParsableCommand {
 
     /// The first port from `start` that nothing on 127.0.0.1 accepts connections on.
     static func freePort(from start: Int) -> Int {
-        (start..<start + 100).first { !isListening(on: $0) } ?? start
-    }
-
-    private static func isListening(on port: Int) -> Bool {
-        let fd = socket(AF_INET, streamSocket, 0)
-        guard fd >= 0 else { return false }
-        defer { close(fd) }
-        var address = sockaddr_in()
-        address.sin_family = sa_family_t(AF_INET)
-        address.sin_port = in_port_t(port).bigEndian
-        address.sin_addr.s_addr = inet_addr("127.0.0.1")
-        return withUnsafePointer(to: address) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) == 0
-            }
-        }
+        (start..<start + 100).first { port in
+            guard let fd = Platform.connectLoopback(port) else { return true }
+            close(fd)
+            return false
+        } ?? start
     }
 
     // MARK: - Tailwind

@@ -40,7 +40,9 @@ roost server --port 8080
 `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres 18
 in its own container, `roost-<app>-db`, with Apple's `container` when it is
 installed and Docker otherwise. It listens on 127.0.0.1 at a port derived from
-the app name, printed at startup. Run tests against it with
+the app name, printed at startup. macOS blocks the ports Apple's `container`
+publishes until you allow `container-runtime-linux` in System Settings >
+Privacy & Security > Local Network. Run tests against it with
 `DB_HOST=127.0.0.1 DB_PORT=<port> swift test`. Delete the container to start
 over: `container rm -f roost-todoapp-db` or `docker rm -fv roost-todoapp-db`.
 Set `DB_HOST` to use a Postgres you run yourself, or

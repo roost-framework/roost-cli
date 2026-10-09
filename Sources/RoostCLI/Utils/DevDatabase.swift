@@ -27,9 +27,7 @@ enum DevDatabase {
 
         let name = containerName(appName)
         let port = hostPort(appName)
-        let ready = { try call(runtime, "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-q") }
-
-        if try !ready() {
+        if !postgresAnswers(on: port) {
             print("[roost] Starting Postgres in \(name) (\(runtime))...")
             // The image download on first run can take a while.
             let started = try call(runtime, "start", name)
@@ -46,12 +44,15 @@ enum DevDatabase {
                 ))
                 throw ExitCode.failure
             }
-            let deadline = Date().addingTimeInterval(60)
-            while try !ready() {
+            let deadline = Date().addingTimeInterval(30)
+            while !postgresAnswers(on: port) {
                 guard Date() < deadline else {
                     RoostUI.noora.error(.alert(
-                        "Postgres in \(name) did not accept connections within 60s.",
-                        takeaways: ["See why: \(.command("\(runtime) logs \(name)"))"]
+                        "Postgres in \(name) did not answer on 127.0.0.1:\(port) within 30s.",
+                        takeaways: [
+                            "See its log: \(.command("\(runtime) logs \(name)"))",
+                            "Apple's container: macOS blocks published ports until you allow container-runtime-linux in System Settings > Privacy & Security > Local Network.",
+                        ]
                     ))
                     throw ExitCode.failure
                 }
@@ -76,6 +77,27 @@ enum DevDatabase {
         // to publish it. Store a chosen port per app if that happens in practice.
         let hash = appName.lowercased().utf8.reduce(UInt32(2_166_136_261)) { ($0 ^ UInt32($1)) &* 16_777_619 }
         return 15432 + Int(hash % 1000)
+    }
+
+    /// Whether Postgres answers on 127.0.0.1:`port`, where the app connects. Accepting the
+    /// connection is not enough: a runtime's port forwarder accepts connections it cannot pass on.
+    static func postgresAnswers(on port: Int) -> Bool {
+        guard let fd = Platform.connectLoopback(port) else { return false }
+        defer { close(fd) }
+        var timeout = timeval(tv_sec: 2, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        // SSLRequest, which Postgres answers with a single byte, S or N.
+        let sslRequest: [UInt8] = [0, 0, 0, 8, 0x04, 0xD2, 0x16, 0x2F]
+        #if os(Linux)
+        let sent = send(fd, sslRequest, sslRequest.count, Int32(MSG_NOSIGNAL))
+        #else
+        var noSigPipe: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
+        let sent = send(fd, sslRequest, sslRequest.count, 0)
+        #endif
+        var reply: UInt8 = 0
+        return sent == sslRequest.count && recv(fd, &reply, 1, 0) == 1
+            && (reply == UInt8(ascii: "S") || reply == UInt8(ascii: "N"))
     }
 
     /// Apple's container first, then Docker.
