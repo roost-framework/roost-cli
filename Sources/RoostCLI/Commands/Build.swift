@@ -90,6 +90,15 @@ struct Build: AsyncParsableCommand {
         let binaryPath = try ProcessManager.binaryPath(product: appName, root: root)
         let processManager = ProcessManager()
 
+        // Before the SIGINT handler, so Ctrl+C still stops a slow container start.
+        try DevDatabase.start(root: root, appName: appName)
+
+        let explicitPort = self.port ?? ProcessInfo.processInfo.environment["ROOST_PORT"].flatMap(Int.init)
+        let port = explicitPort ?? Self.freePort(from: 8080)
+        if port != explicitPort ?? 8080 {
+            print("[roost] Port 8080 is in use; using \(port).")
+        }
+
         // Handle Ctrl+C cleanly via DispatchSource
         signal(SIGINT, SIG_IGN)
         let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
@@ -117,7 +126,7 @@ struct Build: AsyncParsableCommand {
 
             // Start server
             processManager.startServer(binary: binaryPath, port: port, cwd: root)
-            print("[roost] Server started on http://127.0.0.1:\(port ?? 8080)")
+            print("[roost] Server started on http://127.0.0.1:\(port)")
         } else {
             print("[roost] Build failed. Watching for changes to retry...")
         }
@@ -145,7 +154,7 @@ struct Build: AsyncParsableCommand {
             if rebuildSuccess {
                 print("[roost] Build complete. (\(String(format: "%.1f", rebuildDuration))s)")
                 processManager.stopServer()
-                processManager.startServer(binary: binaryPath, port: self.port, cwd: root)
+                processManager.startServer(binary: binaryPath, port: port, cwd: root)
                 print("[roost] Server restarted.")
             } else {
                 print("[roost] Build failed. The previous server is still running. Fix the error and save to retry.")
@@ -153,6 +162,17 @@ struct Build: AsyncParsableCommand {
         }
 
         watcher.start() // Blocks until process exits
+    }
+
+    // MARK: - Port
+
+    /// The first port from `start` that nothing on 127.0.0.1 accepts connections on.
+    static func freePort(from start: Int) -> Int {
+        (start..<start + 100).first { port in
+            guard let fd = Platform.connectLoopback(port) else { return true }
+            close(fd)
+            return false
+        } ?? start
     }
 
     // MARK: - Tailwind

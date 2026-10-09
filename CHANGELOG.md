@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres in
+  a container, `roost-<app>-db`, with Apple's `container` or Docker, instead of
+  the Postgres installed on the host. An explicit `DB_HOST` keeps the old
+  behavior.
+- `roost server` moves to the next free port when 8080 is taken and no port was
+  given.
+- `roost new` suggests `roost server` instead of `swift run`.
+
 ## 2.1.1
 
 - `roost new` writes apps that depend on swift-roost 2.1.3 or later with its
