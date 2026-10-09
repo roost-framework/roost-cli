@@ -20,6 +20,10 @@ struct Spectro: AsyncParsableCommand {
 
     func run() async throws {
         let context = try resolveProject()
+        // `roost spectro`, `--help`, and `--version` need no database.
+        if let first = arguments.first, !first.hasPrefix("-") {
+            try DevDatabase.start(root: context.root, appName: context.appName)
+        }
         FileManager.default.changeCurrentDirectoryPath(context.root)
         // exec keeps stdin, signals, and spectro's exit status intact.
         let argv = (["swift", "run", "spectro"] + arguments).map { strdup($0) } + [nil]

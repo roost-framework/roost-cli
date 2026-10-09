@@ -16,6 +16,7 @@ struct Migrate: AsyncParsableCommand {
 
 private func runAppMigration(_ action: String) throws {
     let context = try resolveProject()
+    try DevDatabase.start(root: context.root, appName: context.appName)
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     process.currentDirectoryURL = URL(fileURLWithPath: context.root)

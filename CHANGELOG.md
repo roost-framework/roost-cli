@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres in
+  a container, `roost-<app>-db`, with Apple's `container` or Docker, instead of
+  the Postgres installed on the host. An explicit `DB_HOST` keeps the old
+  behavior.
+- `roost server` moves to the next free port when 8080 is taken and no port was
+  given.
+- `roost new` suggests `roost server` instead of `swift run`.
+
 ## 2.1.0
 
 The first release of the `roost` CLI as its own package. It previously shipped

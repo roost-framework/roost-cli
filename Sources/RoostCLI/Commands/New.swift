@@ -198,7 +198,7 @@ struct New: AsyncParsableCommand {
             "Project \(.primary(appName)) created",
             takeaways: [
                 "cd \(.command(appName))",
-                "swift run",
+                "roost server",
             ]
         ))
     }
