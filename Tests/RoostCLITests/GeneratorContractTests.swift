@@ -78,7 +78,10 @@ struct GeneratorContractTests {
     @Test("Generated apps require the framework release, not the CLI release")
     func frameworkVersion() {
         let manifest = ProjectTemplates.packageSwift(appName: "Probe", includeDB: true, includeESW: true)
-        #expect(manifest.contains(#"swift-roost", from: "\#(RoostCLI.frameworkVersion)")"#))
+        #expect(manifest.contains(#"swift-roost", from: "\#(RoostCLI.frameworkVersion)", traits: roostTraits)"#))
+        // The trait gives `roost spectro` Noora's output; it exists from Roost 2.1.3.
+        #expect(manifest.contains(#"[.defaults, "RichTerminal"]"#))
+        #expect(RoostCLI.frameworkVersion.compare("2.1.3", options: .numeric) != .orderedAscending)
     }
 
     @Test("Spectro receives every argument, including help and version flags",

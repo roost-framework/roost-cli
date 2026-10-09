@@ -2,9 +2,9 @@ import ArgumentParser
 
 @main
 struct RoostCLI: AsyncParsableCommand {
-    static let version = "2.1.0"
+    static let version = "2.1.1"
     /// Minimum swift-roost release that generated apps depend on.
-    static let frameworkVersion = "2.1.0"
+    static let frameworkVersion = "2.1.3"
 
     static let configuration = CommandConfiguration(
         commandName: "roost",
