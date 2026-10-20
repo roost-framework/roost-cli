@@ -200,11 +200,12 @@ def main():
                DB_NAME="roost_acceptance_" + uuid.uuid4().hex[:16])
     pg_env = dict(env, PGHOST=env["DB_HOST"], PGPORT=env["DB_PORT"], PGUSER=env["DB_USER"], PGPASSWORD=env["DB_PASSWORD"])
     assert env["DB_HOST"] in ("localhost", "127.0.0.1", "::1"), "Acceptance databases must be local"
-    run(["createdb", env["DB_NAME"]], env=pg_env)
     server = None
     try:
-        run([cli, "migrate"], cwd=app, env=env, log=workspace / "migrations.log")
+        run([cli, "db", "setup"], cwd=app, env=env, log=workspace / "db-setup.log")
         run([cli, "migrate", "status"], cwd=app, env=env, log=workspace / "migration-status.log")
+        routes = run([cli, "routes"], cwd=app, env=env, log=workspace / "routes.log")
+        assert re.search(r"^GET +/todos/:id/edit$", routes, re.M), routes
         run(["swift", "test"], cwd=app, env=env, log=workspace / "app-tests.log")
         print("Generated tests and transaction rollback passed.", flush=True)
         configuration = "release" if options.release else "debug"
@@ -247,7 +248,7 @@ def main():
             except subprocess.TimeoutExpired:
                 server.kill()
                 server.wait()
-        run(["dropdb", "--force", env["DB_NAME"]], env=pg_env)
+        run(["dropdb", "--force", "--if-exists", env["DB_NAME"]], env=pg_env)
     print("Acceptance passed; owned database removed. Logs remain in the workspace.", flush=True)
 
 

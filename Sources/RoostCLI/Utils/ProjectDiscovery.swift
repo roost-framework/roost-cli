@@ -58,4 +58,21 @@ enum ProjectDiscovery {
             .appendingPathComponent("Sources")
             .appending("/Migrations")
     }
+
+    /// The swift-roost release in the app's Package.resolved. `nil` before the first
+    /// resolve and for a local checkout, which has no version.
+    static func resolvedFrameworkVersion(root: String) -> String? {
+        struct Resolved: Decodable {
+            struct Pin: Decodable {
+                struct State: Decodable { let version: String? }
+                let identity: String
+                let state: State
+            }
+            let pins: [Pin]
+        }
+        let path = (root as NSString).appendingPathComponent("Package.resolved")
+        guard let data = FileManager.default.contents(atPath: path),
+              let resolved = try? JSONDecoder().decode(Resolved.self, from: data) else { return nil }
+        return resolved.pins.first { $0.identity == "swift-roost" }?.state.version
+    }
 }

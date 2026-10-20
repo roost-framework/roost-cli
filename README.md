@@ -32,12 +32,19 @@ roost new TodoApp
 cd TodoApp
 roost gen auth
 roost gen resource Todo title:string done:bool --both --scope user_id
-roost spectro database create todo_app_dev
-roost migrate
+roost db setup
+roost routes
 roost server --port 8080
 ```
 
-`roost server`, `roost migrate`, and `roost spectro` run the app's Postgres 18
+`roost db setup` creates the app's database, runs its migrations, and runs
+`Seeds/dev.sql` when it exists, like `mix ecto.setup`. `roost db` also takes
+`create`, `drop`, `seed`, and `reset` (drop, then setup); `ROOST_ENV=test roost
+db setup` prepares the test database. `roost routes` lists every route, like
+`mix phx.routes`. Both run the app's own executable, so they use exactly the
+server's configuration; they need swift-roost 2.4.0 or later in the app.
+
+`roost server`, `roost migrate`, `roost db`, and `roost spectro` run the app's Postgres 18
 in its own container, `roost-<app>-db`, with Apple's `container` when it is
 installed and Docker otherwise. It listens on 127.0.0.1 at a port derived from
 the app name, printed at startup. macOS blocks the ports Apple's `container`

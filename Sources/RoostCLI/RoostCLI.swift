@@ -14,6 +14,8 @@ struct RoostCLI: AsyncParsableCommand {
             New.self,
             Gen.self,
             Migrate.self,
+            DB.self,
+            Routes.self,
             Server.self,
             Build.self,
             Spectro.self,

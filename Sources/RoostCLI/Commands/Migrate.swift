@@ -14,31 +14,17 @@ struct Migrate: AsyncParsableCommand {
     )
 }
 
-private func runAppMigration(_ action: String) throws {
-    let context = try resolveProject()
-    try DevDatabase.start(root: context.root, appName: context.appName)
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.currentDirectoryURL = URL(fileURLWithPath: context.root)
-    process.arguments = ["swift", "run", context.appName, "migrate", action]
-    process.standardOutput = FileHandle.standardOutput
-    process.standardError = FileHandle.standardError
-    try process.run()
-    process.waitUntilExit()
-    if process.terminationStatus != 0 { throw ExitCode.failure }
-}
-
 struct MigrateUp: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "up", abstract: "Run pending migrations with the app's configuration")
-    func run() async throws { try runAppMigration("up") }
+    func run() async throws { try runApp(["migrate", "up"]) }
 }
 
 struct MigrateDown: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "down", abstract: "Rollback the last migration")
-    func run() async throws { try runAppMigration("down") }
+    func run() async throws { try runApp(["migrate", "down"]) }
 }
 
 struct MigrateStatus: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "status", abstract: "Show migration status")
-    func run() async throws { try runAppMigration("status") }
+    func run() async throws { try runApp(["migrate", "status"]) }
 }

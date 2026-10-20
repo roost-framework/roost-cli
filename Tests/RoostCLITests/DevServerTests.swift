@@ -41,3 +41,26 @@ struct DevServerTests {
         #expect((15432..<16432).contains(DevDatabase.hostPort("TodoApp")))
     }
 }
+
+@Suite("App commands")
+struct AppCommandTests {
+    @Test("Commands added in a newer framework stop apps that resolved an older one")
+    func frameworkVersion() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(ProjectDiscovery.resolvedFrameworkVersion(root: root.path) == nil)
+        try """
+            {"pins": [
+              {"identity": "nexus", "kind": "remoteSourceControl", "state": {"revision": "a", "version": "9.0.0"}},
+              {"identity": "swift-roost", "kind": "remoteSourceControl", "state": {"revision": "b", "version": "2.3.0"}}
+            ], "version": 3}
+            """.write(to: root.appendingPathComponent("Package.resolved"), atomically: true, encoding: .utf8)
+        #expect(ProjectDiscovery.resolvedFrameworkVersion(root: root.path) == "2.3.0")
+        #expect(isVersion("2.3.0", olderThan: "2.4.0"))
+        #expect(isVersion("2.3.10", olderThan: "2.4.0"))
+        #expect(!isVersion("2.4.0", olderThan: "2.4.0"))
+        #expect(!isVersion("2.10.0", olderThan: "2.4.0"))
+        #expect(!isVersion("3.0", olderThan: "2.4.0"))
+    }
+}

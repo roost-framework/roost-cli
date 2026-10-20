@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `roost db setup|create|drop|seed|reset` manages the app's database with its
+  own configuration, like `mix ecto.setup` and friends: `setup` creates the
+  database, migrates it, and runs `Seeds/<env>.sql` when it exists. `roost
+  routes` lists the app's routes, like `mix phx.routes`. Both need swift-roost
+  2.4.0 or later and stop with an upgrade hint on an app that resolved an older
+  release.
 - `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres in
   a container, `roost-<app>-db`, with Apple's `container` or Docker, instead of
   the Postgres installed on the host. An explicit `DB_HOST` keeps the old
