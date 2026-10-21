@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 — 2026-10-21
+
+Database and route commands that run through the app, like `mix ecto.setup`
+and `mix phx.routes`, live resources, and a dev Postgres in a container.
+`roost spectro` is removed. Generated apps depend on swift-roost 2.4.0 or later.
 
 - `roost db setup|create|drop|seed|reset` manages the app's database with its
   own configuration, like `mix ecto.setup` and friends: `setup` creates the
