@@ -12,6 +12,7 @@ never reused: this script creates and drops a uniquely named database.
 """
 import argparse
 import getpass
+import html
 import http.cookiejar
 import json
 import os
@@ -81,6 +82,57 @@ class Browser:
         self.request("/auth/register", form={"email": email, "password": "swift-roost-password", "_csrf_token": token}, status=303)
 
 
+class LivePage:
+    """Drives one live page as esw-live.js does: connect its stream, then post events."""
+
+    def __init__(self, browser, path):
+        self.browser = browser
+        self.html, _ = browser.request(path)
+        root = re.search(r'data-esw-live data-esw-id="[^"]+" data-esw-state="connecting" '
+                         r'data-esw-stream="([^"]+)" data-esw-event="([^"]+)" data-esw-csrf="([^"]+)"', self.html)
+        assert root, f"No live root at {path}\n{self.html[:3000]}"
+        stream, self.event_url, self.csrf = (html.unescape(group) for group in root.groups())
+        self.stream = browser.opener.open(urllib.request.Request(browser.base + stream), timeout=30)
+        self.revision = self.update()["revision"]
+
+    def update(self):
+        for line in self.stream:
+            if line.startswith(b"data:"):
+                return json.loads(line[5:])
+        raise AssertionError("Live stream closed before an update")
+
+    def push(self, name, values, *, sender=None, status=200):
+        """Posts an event to this page, from another user's page and session when `sender` is given."""
+        sender = sender or self
+        event = {"id": str(uuid.uuid4()), "name": name, "values": {key: [value] for key, value in values.items()},
+                 "baseRevision": self.revision}
+        body, _ = sender.browser.request(self.event_url, method="POST", value=event, headers={"X-CSRF-Token": sender.csrf}, status=status)
+        if status == 200:
+            update = json.loads(body)
+            self.revision = update["revision"]
+            return json.dumps(update["render"])
+        return body
+
+    def close(self):
+        self.stream.close()
+
+
+def check_live(alice, bob, path, prefix, field):
+    """A scoped `roost gen live` index: validation, create, ownership, and delete without reloads."""
+    page = LivePage(alice, path)
+    assert "be blank" in page.push("validate", {field: ""})
+    assert "Live &lt;row&gt;" in page.push("save", {field: "Live <row>"})
+    reloaded, _ = alice.request(path)
+    row_id = re.search(rf'id="{prefix}-([0-9A-Fa-f-]{{36}})"', reloaded)[1]
+    theirs = LivePage(bob, path)
+    assert row_id not in theirs.html, "Another user's live page listed the row"
+    page.push("delete", {"id": row_id}, sender=theirs, status=403)
+    page.push("delete", {"id": row_id})
+    assert row_id not in alice.request(path)[0]
+    page.close()
+    theirs.close()
+
+
 def check_http(base):
     alice, bob = Browser(base), Browser(base)
     alice.request("/css/app.css")
@@ -115,6 +167,7 @@ def check_http(base):
     _, note_headers = alice.request("/notes", form={"body": "Second resource", "_csrf_token": note_token}, status=303)
     alice.request(note_headers["Location"])
     bob.register("bob@example.test")
+    check_live(alice, bob, "/tasks", "task", "title")
     bob_token = bob.csrf("/todos/new")
     assert json.loads(bob.request("/api/todos")[0]) == []
     bob.request(location, status=404)
@@ -137,7 +190,7 @@ def check_http(base):
     alice.request("/auth/login", form={"email": "alice@example.test", "password": "wrong", "_csrf_token": token}, status=422)
     alice.request("/auth/login", form={"email": "alice@example.test", "password": "swift-roost-password", "_csrf_token": token}, status=303)
     alice.request(location)
-    print("HTTP: auth, CSRF, flash, forms, JSON, updates, two-user isolation and second resource passed.", flush=True)
+    print("HTTP: auth, CSRF, flash, forms, JSON, updates, two-user isolation, second resource and live page passed.", flush=True)
 
 
 def prepare(cli, workspace):
@@ -146,6 +199,7 @@ def prepare(cli, workspace):
     run([cli, "gen", "auth"], cwd=app)
     run([cli, "gen", "resource", "Todo", "title:string", "done:bool", "--both", "--scope", "user_id"], cwd=app)
     run([cli, "gen", "resource", "Note", "body:text"], cwd=app)
+    run([cli, "gen", "live", "Task", "title:string", "--scope", "user_id"], cwd=app)
     model = app / "Sources/TodoWorkshop/Models/Todo.swift"
     before = model.read_bytes()
     result = run([cli, "gen", "resource", "Todo", "title:string"], cwd=app, succeeds=False)
@@ -190,21 +244,18 @@ def main():
         assert "version" in framework, f"Expected a released Roost, resolved {framework}"
         print(f"Published Roost {framework['version']} resolved at {framework['revision']}.", flush=True)
     print("Generated SwiftPM app compiled.", flush=True)
-    if "version" in pins.get("spectro", {}):
-        spectro = run([cli, "spectro", "--version"], cwd=app, log=workspace / "spectro.log").strip().splitlines()[-1]
-        assert spectro == pins["spectro"]["version"], f"roost spectro ran {spectro}, app resolved {pins['spectro']}"
-        print(f"roost spectro ran the app's Spectro {spectro}.", flush=True)
     env = dict(os.environ)
     env.update(DB_HOST=env.get("DB_HOST", "localhost"), DB_PORT=env.get("DB_PORT", "5432"),
                DB_USER=env.get("DB_USER", getpass.getuser()), DB_PASSWORD=env.get("DB_PASSWORD", ""),
                DB_NAME="roost_acceptance_" + uuid.uuid4().hex[:16])
     pg_env = dict(env, PGHOST=env["DB_HOST"], PGPORT=env["DB_PORT"], PGUSER=env["DB_USER"], PGPASSWORD=env["DB_PASSWORD"])
     assert env["DB_HOST"] in ("localhost", "127.0.0.1", "::1"), "Acceptance databases must be local"
-    run(["createdb", env["DB_NAME"]], env=pg_env)
     server = None
     try:
-        run([cli, "migrate"], cwd=app, env=env, log=workspace / "migrations.log")
+        run([cli, "db", "setup"], cwd=app, env=env, log=workspace / "db-setup.log")
         run([cli, "migrate", "status"], cwd=app, env=env, log=workspace / "migration-status.log")
+        routes = run([cli, "routes"], cwd=app, env=env, log=workspace / "routes.log")
+        assert re.search(r"^GET +/todos/:id/edit$", routes, re.M), routes
         run(["swift", "test"], cwd=app, env=env, log=workspace / "app-tests.log")
         print("Generated tests and transaction rollback passed.", flush=True)
         configuration = "release" if options.release else "debug"
@@ -236,7 +287,9 @@ def main():
                         raise RuntimeError((workspace / "server.log").read_text())
                     time.sleep(0.1)
             check_http(f"http://127.0.0.1:{port}")
-        run([executable, "migrate", "down"], cwd=runtime, env=env, log=workspace / "rollback.log")
+        run([executable, "migrate", "down", "--step", "2"], cwd=runtime, env=env, log=workspace / "rollback.log")
+        status = run([executable, "migrate", "status"], cwd=runtime, env=env, log=workspace / "rollback-status.log")
+        assert len(re.findall(r"^ *Pending ", status, re.M)) == 2, status
         run([executable, "migrate", "up"], cwd=runtime, env=env, log=workspace / "remigrate.log")
         print("Compiled app migration rollback and reapply passed.", flush=True)
     finally:
@@ -247,7 +300,7 @@ def main():
             except subprocess.TimeoutExpired:
                 server.kill()
                 server.wait()
-        run(["dropdb", "--force", env["DB_NAME"]], env=pg_env)
+        run(["dropdb", "--force", "--if-exists", env["DB_NAME"]], env=pg_env)
     print("Acceptance passed; owned database removed. Logs remain in the workspace.", flush=True)
 
 

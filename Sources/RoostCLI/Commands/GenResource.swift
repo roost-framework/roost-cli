@@ -26,11 +26,18 @@ struct GenResource: AsyncParsableCommand {
     @Option(name: .long, help: "Scope foreign key column (e.g. user_id)")
     var scope: String?
 
+    /// Set by `roost gen live`: the index is a live page instead of a template.
+    var live = false
+
     func run() async throws {
         guard [json, both, modelOnly].filter({ $0 }).count <= 1 else {
             throw ValidationError("Choose one of --json, --both or --model-only.")
         }
         let context = try resolveProject()
+        if live, let resolved = ProjectDiscovery.resolvedFrameworkVersion(root: context.root),
+           isVersion(resolved, olderThan: "2.3.0") {
+            throw ValidationError("Live pages need swift-roost 2.3.0 or later; this app resolved \(resolved). Run 'swift package update swift-roost' first.")
+        }
         try FieldParser.validateTypeName(name)
         let parsedFields = try FieldParser.parse(fields)
         if let scope {
@@ -52,20 +59,31 @@ struct GenResource: AsyncParsableCommand {
             ("Tests/\(context.appName)Tests/\(name)InputTests.swift", GeneratorTemplates.inputTests(appName: context.appName, name: name, fields: parsedFields)),
         ]
         var registrations: [String] = []
+        var services: [String] = []
         if !modelOnly {
             if !json {
                 guard FileManager.default.fileExists(atPath: "\(context.root)/\(source)/Views/layout.esw") else {
                     throw ValidationError("HTML resources require ESW and Views/layout.esw. Use --json for an API-only app.")
                 }
-                files.append(("\(source)/Controllers/\(name)Controller.swift", GeneratorTemplates.htmlController(name: name, pluralName: plural, fields: parsedFields, scopeKey: scope)))
+                files.append(("\(source)/Controllers/\(name)Controller.swift", GeneratorTemplates.htmlController(name: name, pluralName: plural, fields: parsedFields, scopeKey: scope, liveIndex: live)))
                 files += [
-                    ("\(source)/Views/\(table)/index.esw", GeneratorTemplates.listTemplate(name: name, fields: parsedFields)),
                     ("\(source)/Views/\(table)/show.esw", GeneratorTemplates.showTemplate(name: name, fields: parsedFields)),
                     ("\(source)/Views/\(table)/new.esw", GeneratorTemplates.newTemplate(name: name, fields: parsedFields)),
                     ("\(source)/Views/\(table)/edit.esw", GeneratorTemplates.editTemplate(name: name, fields: parsedFields)),
                 ]
-                files += GeneratorTemplates.htmlViews(name: name, fields: parsedFields).map {
-                    ("\(source)/Views/\(table)/\($0.0)", $0.1)
+                files += GeneratorTemplates.htmlViews(name: name, fields: parsedFields)
+                    .filter { !live || $0.0 != "\(plural)IndexView.swift" }
+                    .map { ("\(source)/Views/\(table)/\($0.0)", $0.1) }
+                if live {
+                    files += [
+                        ("\(source)/Live/\(plural)Live.swift", LiveTemplates.livePage(name: name, pluralName: plural, scopeKey: scope)),
+                        ("\(source)/Views/\(table)/\(plural)LiveView.swift", LiveTemplates.liveView(name: name, pluralName: plural)),
+                        ("\(source)/Views/\(table)/index.live.hesw", LiveTemplates.liveTemplate(name: name, pluralName: plural, fields: parsedFields)),
+                    ]
+                    registrations.append("\(plural)Live.route.routes")
+                    services.append("\(plural)Live.route,")
+                } else {
+                    files.append(("\(source)/Views/\(table)/index.esw", GeneratorTemplates.listTemplate(name: name, fields: parsedFields)))
                 }
                 registrations.append(GeneratorTemplates.htmlRegistration(name: name, pluralName: plural))
             }
@@ -74,7 +92,7 @@ struct GenResource: AsyncParsableCommand {
                 registrations.append(GeneratorTemplates.jsonRegistration(name: name, pluralName: plural))
             }
         }
-        let app = try ProjectEditor.registeredApp(in: context, routes: registrations)
+        let app = try ProjectEditor.registeredApp(in: context, routes: registrations, services: services)
         try FileCreator.create(files, in: context.root)
         if !registrations.isEmpty { try app.1.write(toFile: app.0, atomically: true, encoding: .utf8) }
         RoostUI.noora.success(.alert("Resource \(.primary(name)) generated and registered. Run 'roost migrate' then 'swift test'."))

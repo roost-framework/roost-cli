@@ -205,11 +205,22 @@ enum GeneratorTemplates {
         """
     }
 
-    static func htmlController(name: String, pluralName: String, fields: [ParsedField], scopeKey: String? = nil) -> String {
+    static func htmlController(name: String, pluralName: String, fields: [ParsedField], scopeKey: String? = nil, liveIndex: Bool = false) -> String {
         let singular = toLowerFirst(name)
         let plural = toLowerFirst(pluralName)
         let scope = ControllerScope(scopeKey, requireAuth: true)
         let context = "\(pluralName)Context(repo: conn.repo())"
+        // A live index loads its records in the live page's mount.
+        let index = liveIndex ? """
+            static func index(_ conn: Connection) async throws -> Connection {
+                    try await \(pluralName)Live.route.render(conn, title: "\(pluralName)")
+                }
+            """ : """
+            static func index(_ conn: Connection) async throws -> Connection {\(scope.load)
+                    let \(plural) = try await \(context).list\(pluralName)(\(scope.listArgument))
+                    return try conn.render(\(pluralName)IndexView(\(plural): \(plural)), title: "\(pluralName)")
+                }
+            """
         return """
         import Roost
 
@@ -224,10 +235,7 @@ enum GeneratorTemplates {
                 }
             }
 
-            static func index(_ conn: Connection) async throws -> Connection {\(scope.load)
-                let \(plural) = try await \(context).list\(pluralName)(\(scope.listArgument))
-                return try conn.render(\(pluralName)IndexView(\(plural): \(plural)), title: "\(pluralName)")
-            }
+            \(index)
 
             static func new(_ conn: Connection) async throws -> Connection {
                 try conn.render(\(name)NewView(), title: "New \(name)")

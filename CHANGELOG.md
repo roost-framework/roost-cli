@@ -1,8 +1,39 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 — 2026-10-21
 
-- `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres in
+Database and route commands that run through the app, like `mix ecto.setup`
+and `mix phx.routes`, live resources, and a dev Postgres in a container.
+`roost spectro` is removed. Generated apps depend on swift-roost 2.4.0 or later.
+
+- `roost db setup|create|drop|seed|reset` manages the app's database with its
+  own configuration, like `mix ecto.setup` and friends: `setup` creates the
+  database, migrates it, and runs `Seeds/<env>.sql` when it exists. `roost
+  routes` lists the app's routes, like `mix phx.routes`. Both need swift-roost
+  2.4.0 or later and stop with an upgrade hint on an app that resolved an older
+  release.
+- `roost gen live` generates an HTML resource whose index is a live page, like
+  `mix phx.gen.live`: the list, a create form validated as you type, and delete,
+  without page reloads. Show, new, and edit stay ordinary pages, and the live
+  forms post to the controller without JavaScript. `--scope user_id` checks the
+  page's owner on every event. It needs swift-roost 2.3.0 or later.
+- `roost new` declares `services` in App.swift with a `// roost:services`
+  marker, where `roost gen live` registers live pages. For an older app, the
+  generator says what to add.
+- `roost gen html` and `roost gen json` no longer crash with "Can't read a
+  value from a parsable argument definition".
+- Lines that generators add to App.swift take the marker's indentation.
+- `roost migrate` passes its arguments to the app's migrate command, so `roost
+  migrate down --step 2` and `roost migrate down --all` work, with swift-roost
+  2.4.0 or later.
+- **Breaking:** `roost spectro` is removed. It ran Spectro's own CLI, which
+  didn't read the app's configuration: without `DB_NAME`, `roost spectro
+  migrate` used the `postgres` maintenance database, so `status` showed applied
+  migrations as pending and `up` applied them there. Use `roost db
+  create|drop` and `roost migrate up|down|status`, which run through the app.
+  `roost new` no longer enables swift-roost's `RichTerminal` trait, which only
+  served `roost spectro`; apps that enable it still build.
+- `roost server`, `roost migrate`, and `roost db` run the app's Postgres in
   a container, `roost-<app>-db`, with Apple's `container` or Docker, instead of
   the Postgres installed on the host. An explicit `DB_HOST` keeps the old
   behavior.

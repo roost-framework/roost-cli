@@ -11,6 +11,7 @@ struct Gen: AsyncParsableCommand {
             GenSchema.self,
             GenJSON.self,
             GenHTML.self,
+            GenLive.self,
             GenAuth.self,
             GenDockerfile.self,
         ]

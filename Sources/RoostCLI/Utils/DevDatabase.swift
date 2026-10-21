@@ -3,7 +3,7 @@ import Foundation
 @preconcurrency import Noora
 
 /// The app's development Postgres, in a container of its own, so `roost server`,
-/// `roost migrate`, and `roost spectro` never reach a Postgres installed on the host.
+/// `roost migrate`, and `roost db` never reach a Postgres installed on the host.
 enum DevDatabase {
     /// Matches the Postgres that CI tests against.
     static let image = "postgres:18"

@@ -15,10 +15,7 @@ struct GenHTML: AsyncParsableCommand {
     var fields: [String] = []
 
     func run() async throws {
-        var resource = GenResource()
-        resource.name = name
-        resource.fields = fields
-        resource.json = false
-        try await resource.run()
+        // Parsed, not built with GenResource(): unparsed flags can't be read.
+        try await GenResource.parse([name] + fields).run()
     }
 }

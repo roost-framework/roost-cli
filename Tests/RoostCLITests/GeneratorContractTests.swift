@@ -49,10 +49,12 @@ struct GeneratorContractTests {
             ("Sources/Probe/App.swift", ProjectTemplates.appSwift(appName: "Probe", includeDB: true) + "\n// handwritten\n"),
         ], in: root.path)
         defer { try? FileManager.default.removeItem(at: root) }
-        let (_, contents) = try ProjectEditor.registeredApp(in: context, routes: ["todosRoutes()"], plugs: ["fetchCurrentUser(),"])
+        let (_, contents) = try ProjectEditor.registeredApp(in: context, routes: ["todosRoutes()"], plugs: ["fetchCurrentUser(),"], services: ["TodosLive.route,"])
         #expect(contents.contains("// handwritten"))
         #expect(contents.contains("todosRoutes()"))
-        #expect(contents.contains("fetchCurrentUser(),"))
+        // Additions take the marker line's indentation.
+        #expect(contents.contains("            fetchCurrentUser(),\n            // roost:plugs"))
+        #expect(contents.contains("            TodosLive.route,\n            // roost:services"))
         #expect(ProjectDiscovery.findRoot(from: root.appendingPathComponent("Sources/Probe").path) == root.path)
     }
 
@@ -75,19 +77,34 @@ struct GeneratorContractTests {
         }
     }
 
+    @Test("A live resource's index renders its live page, which checks its owner on every event")
+    func live() throws {
+        let fields = try FieldParser.parse(["title:string", "done:bool", "score:double"])
+        let controller = GeneratorTemplates.htmlController(name: "Todo", pluralName: "Todos", fields: fields, scopeKey: "user_id", liveIndex: true)
+        #expect(controller.contains(#"try await TodosLive.route.render(conn, title: "Todos")"#))
+        #expect(!controller.contains("TodosIndexView"))
+        let page = LiveTemplates.livePage(name: "Todo", pluralName: "Todos", scopeKey: "user_id")
+        #expect(page.contains("guard try Self.currentUserID(conn) == state.scopeId else { throw LiveError.unauthorized }"))
+        #expect(page.contains("context.deleteTodo(id: id, scopeId: state.scopeId)"))
+        #expect(!LiveTemplates.livePage(name: "Todo", pluralName: "Todos", scopeKey: nil).contains("scopeId"))
+        let template = LiveTemplates.liveTemplate(name: "Todo", pluralName: "Todos", fields: fields)
+        #expect(template.contains(#"<.form action="/todos" method="post" id="new-todo" attributes={["esw-submit": "save", "esw-change": "validate"]}>"#))
+        #expect(template.contains(#"<.input field={form["done"]} label="Done" type="checkbox" />"#))
+        #expect(template.contains(#"<.input field={form["score"]} label="Score" type="number" attributes={["step": "any"]} />"#))
+        #expect(template.contains(#"<tr :for={todo in todos} :key={todo.id} id={"todo-\(todo.id)"}>"#))
+    }
+
     @Test("Generated apps require the framework release, not the CLI release")
     func frameworkVersion() {
         let manifest = ProjectTemplates.packageSwift(appName: "Probe", includeDB: true, includeESW: true)
-        #expect(manifest.contains(#"swift-roost", from: "\#(RoostCLI.frameworkVersion)", traits: roostTraits)"#))
-        // The trait gives `roost spectro` Noora's output; it exists from Roost 2.1.3.
-        #expect(manifest.contains(#"[.defaults, "RichTerminal"]"#))
-        #expect(RoostCLI.frameworkVersion.compare("2.1.3", options: .numeric) != .orderedAscending)
+        #expect(manifest.contains(#"swift-roost", from: "\#(RoostCLI.frameworkVersion)")"#))
+        #expect(!manifest.contains("RichTerminal"))
     }
 
-    @Test("Spectro receives every argument, including help and version flags",
-          arguments: [["--help"], ["--version"], ["migrate", "down", "--step", "1"], []])
-    func spectroPassthrough(arguments: [String]) throws {
-        let command = try #require(try RoostCLI.parseAsRoot(["spectro"] + arguments) as? Spectro)
+    @Test("roost migrate passes every argument to the app, including help",
+          arguments: [["down", "--step", "2"], ["down", "--all"], ["status"], ["--help"], []])
+    func migratePassthrough(arguments: [String]) throws {
+        let command = try #require(try RoostCLI.parseAsRoot(["migrate"] + arguments) as? Migrate)
         #expect(command.arguments == arguments)
     }
 

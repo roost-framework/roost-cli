@@ -10,7 +10,7 @@ You need Swift 6.3 or later on macOS 14+ or Linux.
 
 ```sh
 brew install mint
-mint install roost-framework/roost-cli@2.1.1
+mint install roost-framework/roost-cli@3.0.0
 roost --version
 ```
 
@@ -20,7 +20,7 @@ Without Mint, for example on Linux, build from a checkout and copy
 `.build/release/roost` to a directory on your `PATH`:
 
 ```sh
-git clone --branch 2.1.1 --depth 1 https://github.com/roost-framework/roost-cli.git
+git clone --branch 3.0.0 --depth 1 https://github.com/roost-framework/roost-cli.git
 cd roost-cli
 swift build -c release --product roost
 ```
@@ -32,12 +32,22 @@ roost new TodoApp
 cd TodoApp
 roost gen auth
 roost gen resource Todo title:string done:bool --both --scope user_id
-roost spectro database create todo_app_dev
-roost migrate
+roost db setup
+roost routes
 roost server --port 8080
 ```
 
-`roost server`, `roost migrate`, and `roost spectro` run the app's Postgres 18
+`roost db setup` creates the app's database, runs its migrations, and runs
+`Seeds/dev.sql` when it exists, like `mix ecto.setup`. `roost db` also takes
+`create`, `drop`, `seed`, and `reset` (drop, then setup); `ROOST_ENV=test roost
+db setup` prepares the test database. `roost routes` lists every route, like
+`mix phx.routes`. Both run the app's own executable, so they use exactly the
+server's configuration; they need swift-roost 2.4.0 or later in the app.
+`roost migrate` passes its options to the app too: with swift-roost 2.4.0 or
+later, `roost migrate down --step 2` rolls back the two newest migrations, and
+`--all` rolls back every one.
+
+`roost server`, `roost migrate`, and `roost db` run the app's Postgres 18
 in its own container, `roost-<app>-db`, with Apple's `container` when it is
 installed and Docker otherwise. It listens on 127.0.0.1 at a port derived from
 the app name, printed at startup. macOS blocks the ports Apple's `container`
@@ -57,14 +67,18 @@ Actions decode input with `conn.permit`, so only the input type's fields can be
 set. `roost gen auth` writes `RegistrationController` and `SessionController`,
 routed from `Routes/AuthRoutes.swift`.
 
-Generated apps depend on swift-roost 2.1.3 or later with its `RichTerminal`
-trait, which gives `roost spectro` colors, spinners, and styled tables. Remove
-`"RichTerminal"` from `roostTraits` in the app's `Package.swift` to skip
-downloading Noora; `roost spectro` then prints plain text. Spectro, Nexus, and ESW
-arrive through SwiftPM as the app's own dependencies; there is nothing else to
-install. `roost spectro <arguments>` runs the `spectro` executable from those
-dependencies, so its version always matches the app's `Package.resolved`. ESW
-compiles templates through its build plugin during `swift build`.
+`roost gen live Task title:string --scope user_id` writes the same HTML resource,
+but its index is a live page, like `mix phx.gen.live`: the list, a create form
+validated as you type, and delete, without page reloads. Show, new, and edit stay
+ordinary pages, and the live forms post to `TaskController` when JavaScript is
+unavailable. The page, `Live/TasksLive.swift`, is registered in App.swift's
+`routes` and `services`. Live pages need swift-roost 2.3.0 or later; apps created
+before this release also need a `// roost:services` marker, which the generator
+asks for.
+
+Spectro, Nexus, and ESW arrive through SwiftPM as the app's own dependencies;
+there is nothing else to install. ESW compiles templates through its build
+plugin during `swift build`.
 
 Run `roost <command> --help` for options. The
 [framework documentation](https://github.com/roost-framework/swift-roost#readme)

@@ -5,17 +5,24 @@ import Foundation
 enum ProjectEditor {
     struct MissingMarker: Error, CustomStringConvertible {
         let marker: String
-        var description: String { "Add '// roost:\(marker)' inside App.swift's \(marker) declaration, then rerun the generator." }
+        var description: String {
+            marker == "services"
+                ? "Add 'var services: [any Service] { [\n        // roost:services\n    ] }' to App.swift, then rerun the generator."
+                : "Add '// roost:\(marker)' inside App.swift's \(marker) declaration, then rerun the generator."
+        }
     }
 
-    static func registeredApp(in context: ProjectContext, routes: [String], plugs: [String] = []) throws -> (String, String) {
+    static func registeredApp(in context: ProjectContext, routes: [String], plugs: [String] = [], services: [String] = []) throws -> (String, String) {
         let path = "Sources/\(context.appName)/App.swift"
         let full = (context.root as NSString).appendingPathComponent(path)
         var content = try String(contentsOfFile: full, encoding: .utf8)
-        for (kind, additions) in [("routes", routes), ("plugs", plugs)] where !additions.isEmpty {
+        for (kind, additions) in [("routes", routes), ("plugs", plugs), ("services", services)] where !additions.isEmpty {
             let marker = "// roost:\(kind)"
-            guard content.contains(marker) else { throw MissingMarker(marker: kind) }
-            content = content.replacingOccurrences(of: marker, with: additions.joined(separator: "\n        ") + "\n        " + marker)
+            guard let range = content.range(of: marker) else { throw MissingMarker(marker: kind) }
+            // Indent additions like the marker line.
+            let lineStart = content[..<range.lowerBound].lastIndex(of: "\n").map(content.index(after:)) ?? content.startIndex
+            let indent = "\n" + content[lineStart..<range.lowerBound]
+            content = content.replacingOccurrences(of: marker, with: additions.joined(separator: indent) + indent + marker)
         }
         return (full, content)
     }
