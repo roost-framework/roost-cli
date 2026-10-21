@@ -64,6 +64,15 @@ Actions decode input with `conn.permit`, so only the input type's fields can be
 set. `roost gen auth` writes `RegistrationController` and `SessionController`,
 routed from `Routes/AuthRoutes.swift`.
 
+`roost gen live Task title:string --scope user_id` writes the same HTML resource,
+but its index is a live page, like `mix phx.gen.live`: the list, a create form
+validated as you type, and delete, without page reloads. Show, new, and edit stay
+ordinary pages, and the live forms post to `TaskController` when JavaScript is
+unavailable. The page, `Live/TasksLive.swift`, is registered in App.swift's
+`routes` and `services`. Live pages need swift-roost 2.3.0 or later; apps created
+before this release also need a `// roost:services` marker, which the generator
+asks for.
+
 Generated apps depend on swift-roost 2.1.3 or later with its `RichTerminal`
 trait, which gives `roost spectro` colors, spinners, and styled tables. Remove
 `"RichTerminal"` from `roostTraits` in the app's `Package.swift` to skip

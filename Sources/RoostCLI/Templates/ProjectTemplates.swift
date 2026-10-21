@@ -126,6 +126,12 @@ enum ProjectTemplates {
         @main
         struct \(appName): RoostApp {\(dbLine)
             let sessionStore: (any SessionStore)? = MemorySessionStore()
+
+            var services: [any Service] {
+                [
+                    // roost:services
+                ]
+            }
         \(layout)
 
             var plugs: [Plug] {

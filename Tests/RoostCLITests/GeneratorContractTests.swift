@@ -49,10 +49,12 @@ struct GeneratorContractTests {
             ("Sources/Probe/App.swift", ProjectTemplates.appSwift(appName: "Probe", includeDB: true) + "\n// handwritten\n"),
         ], in: root.path)
         defer { try? FileManager.default.removeItem(at: root) }
-        let (_, contents) = try ProjectEditor.registeredApp(in: context, routes: ["todosRoutes()"], plugs: ["fetchCurrentUser(),"])
+        let (_, contents) = try ProjectEditor.registeredApp(in: context, routes: ["todosRoutes()"], plugs: ["fetchCurrentUser(),"], services: ["TodosLive.route,"])
         #expect(contents.contains("// handwritten"))
         #expect(contents.contains("todosRoutes()"))
-        #expect(contents.contains("fetchCurrentUser(),"))
+        // Additions take the marker line's indentation.
+        #expect(contents.contains("            fetchCurrentUser(),\n            // roost:plugs"))
+        #expect(contents.contains("            TodosLive.route,\n            // roost:services"))
         #expect(ProjectDiscovery.findRoot(from: root.appendingPathComponent("Sources/Probe").path) == root.path)
     }
 
@@ -73,6 +75,23 @@ struct GeneratorContractTests {
         for routes in [AuthTemplates.authRoutes(), ProjectTemplates.appSwift(appName: "Probe", includeDB: true)] {
             #expect(!routes.contains("{ conn in"))
         }
+    }
+
+    @Test("A live resource's index renders its live page, which checks its owner on every event")
+    func live() throws {
+        let fields = try FieldParser.parse(["title:string", "done:bool", "score:double"])
+        let controller = GeneratorTemplates.htmlController(name: "Todo", pluralName: "Todos", fields: fields, scopeKey: "user_id", liveIndex: true)
+        #expect(controller.contains(#"try await TodosLive.route.render(conn, title: "Todos")"#))
+        #expect(!controller.contains("TodosIndexView"))
+        let page = LiveTemplates.livePage(name: "Todo", pluralName: "Todos", scopeKey: "user_id")
+        #expect(page.contains("guard try Self.currentUserID(conn) == state.scopeId else { throw LiveError.unauthorized }"))
+        #expect(page.contains("context.deleteTodo(id: id, scopeId: state.scopeId)"))
+        #expect(!LiveTemplates.livePage(name: "Todo", pluralName: "Todos", scopeKey: nil).contains("scopeId"))
+        let template = LiveTemplates.liveTemplate(name: "Todo", pluralName: "Todos", fields: fields)
+        #expect(template.contains(#"<.form action="/todos" method="post" id="new-todo" attributes={["esw-submit": "save", "esw-change": "validate"]}>"#))
+        #expect(template.contains(#"<.input field={form["done"]} label="Done" type="checkbox" />"#))
+        #expect(template.contains(#"<.input field={form["score"]} label="Score" type="number" attributes={["step": "any"]} />"#))
+        #expect(template.contains(#"<tr :for={todo in todos} :key={todo.id} id={"todo-\(todo.id)"}>"#))
     }
 
     @Test("Generated apps require the framework release, not the CLI release")

@@ -60,8 +60,13 @@ enum ProjectDiscovery {
     }
 
     /// The swift-roost release in the app's Package.resolved. `nil` before the first
-    /// resolve and for a local checkout, which has no version.
-    static func resolvedFrameworkVersion(root: String) -> String? {
+    /// resolve and for a local checkout, which has no version. SwiftPM keeps a remote
+    /// pin after the app switches to a checkout, so the generated Package.swift's
+    /// checkout variables are checked first.
+    static func resolvedFrameworkVersion(
+        root: String, environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> String? {
+        guard environment["ROOST_FRAMEWORK_PATH"] == nil, environment["ROOST_ECOSYSTEM_PATH"] == nil else { return nil }
         struct Resolved: Decodable {
             struct Pin: Decodable {
                 struct State: Decodable { let version: String? }

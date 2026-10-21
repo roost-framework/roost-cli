@@ -8,8 +8,17 @@
   routes` lists the app's routes, like `mix phx.routes`. Both need swift-roost
   2.4.0 or later and stop with an upgrade hint on an app that resolved an older
   release.
+- `roost gen live` generates an HTML resource whose index is a live page, like
+  `mix phx.gen.live`: the list, a create form validated as you type, and delete,
+  without page reloads. Show, new, and edit stay ordinary pages, and the live
+  forms post to the controller without JavaScript. `--scope user_id` checks the
+  page's owner on every event. It needs swift-roost 2.3.0 or later.
+- `roost new` declares `services` in App.swift with a `// roost:services`
+  marker, where `roost gen live` registers live pages. For an older app, the
+  generator says what to add.
 - `roost gen html` and `roost gen json` no longer crash with "Can't read a
   value from a parsable argument definition".
+- Lines that generators add to App.swift take the marker's indentation.
 - `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres in
   a container, `roost-<app>-db`, with Apple's `container` or Docker, instead of
   the Postgres installed on the host. An explicit `DB_HOST` keeps the old
