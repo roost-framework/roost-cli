@@ -19,7 +19,17 @@
 - `roost gen html` and `roost gen json` no longer crash with "Can't read a
   value from a parsable argument definition".
 - Lines that generators add to App.swift take the marker's indentation.
-- `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres in
+- `roost migrate` passes its arguments to the app's migrate command, so `roost
+  migrate down --step 2` and `roost migrate down --all` work, with swift-roost
+  2.4.0 or later.
+- **Breaking:** `roost spectro` is removed. It ran Spectro's own CLI, which
+  didn't read the app's configuration: without `DB_NAME`, `roost spectro
+  migrate` used the `postgres` maintenance database, so `status` showed applied
+  migrations as pending and `up` applied them there. Use `roost db
+  create|drop` and `roost migrate up|down|status`, which run through the app.
+  `roost new` no longer enables swift-roost's `RichTerminal` trait, which only
+  served `roost spectro`; apps that enable it still build.
+- `roost server`, `roost migrate`, and `roost db` run the app's Postgres in
   a container, `roost-<app>-db`, with Apple's `container` or Docker, instead of
   the Postgres installed on the host. An explicit `DB_HOST` keeps the old
   behavior.

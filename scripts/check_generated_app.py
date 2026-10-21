@@ -244,10 +244,6 @@ def main():
         assert "version" in framework, f"Expected a released Roost, resolved {framework}"
         print(f"Published Roost {framework['version']} resolved at {framework['revision']}.", flush=True)
     print("Generated SwiftPM app compiled.", flush=True)
-    if "version" in pins.get("spectro", {}):
-        spectro = run([cli, "spectro", "--version"], cwd=app, log=workspace / "spectro.log").strip().splitlines()[-1]
-        assert spectro == pins["spectro"]["version"], f"roost spectro ran {spectro}, app resolved {pins['spectro']}"
-        print(f"roost spectro ran the app's Spectro {spectro}.", flush=True)
     env = dict(os.environ)
     env.update(DB_HOST=env.get("DB_HOST", "localhost"), DB_PORT=env.get("DB_PORT", "5432"),
                DB_USER=env.get("DB_USER", getpass.getuser()), DB_PASSWORD=env.get("DB_PASSWORD", ""),
@@ -291,7 +287,9 @@ def main():
                         raise RuntimeError((workspace / "server.log").read_text())
                     time.sleep(0.1)
             check_http(f"http://127.0.0.1:{port}")
-        run([executable, "migrate", "down"], cwd=runtime, env=env, log=workspace / "rollback.log")
+        run([executable, "migrate", "down", "--step", "2"], cwd=runtime, env=env, log=workspace / "rollback.log")
+        status = run([executable, "migrate", "status"], cwd=runtime, env=env, log=workspace / "rollback-status.log")
+        assert len(re.findall(r"^ *Pending ", status, re.M)) == 2, status
         run([executable, "migrate", "up"], cwd=runtime, env=env, log=workspace / "remigrate.log")
         print("Compiled app migration rollback and reapply passed.", flush=True)
     finally:

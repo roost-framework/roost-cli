@@ -43,8 +43,11 @@ roost server --port 8080
 db setup` prepares the test database. `roost routes` lists every route, like
 `mix phx.routes`. Both run the app's own executable, so they use exactly the
 server's configuration; they need swift-roost 2.4.0 or later in the app.
+`roost migrate` passes its options to the app too: with swift-roost 2.4.0 or
+later, `roost migrate down --step 2` rolls back the two newest migrations, and
+`--all` rolls back every one.
 
-`roost server`, `roost migrate`, `roost db`, and `roost spectro` run the app's Postgres 18
+`roost server`, `roost migrate`, and `roost db` run the app's Postgres 18
 in its own container, `roost-<app>-db`, with Apple's `container` when it is
 installed and Docker otherwise. It listens on 127.0.0.1 at a port derived from
 the app name, printed at startup. macOS blocks the ports Apple's `container`
@@ -73,14 +76,9 @@ unavailable. The page, `Live/TasksLive.swift`, is registered in App.swift's
 before this release also need a `// roost:services` marker, which the generator
 asks for.
 
-Generated apps depend on swift-roost 2.1.3 or later with its `RichTerminal`
-trait, which gives `roost spectro` colors, spinners, and styled tables. Remove
-`"RichTerminal"` from `roostTraits` in the app's `Package.swift` to skip
-downloading Noora; `roost spectro` then prints plain text. Spectro, Nexus, and ESW
-arrive through SwiftPM as the app's own dependencies; there is nothing else to
-install. `roost spectro <arguments>` runs the `spectro` executable from those
-dependencies, so its version always matches the app's `Package.resolved`. ESW
-compiles templates through its build plugin during `swift build`.
+Spectro, Nexus, and ESW arrive through SwiftPM as the app's own dependencies;
+there is nothing else to install. ESW compiles templates through its build
+plugin during `swift build`.
 
 Run `roost <command> --help` for options. The
 [framework documentation](https://github.com/roost-framework/swift-roost#readme)

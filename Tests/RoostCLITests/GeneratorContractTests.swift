@@ -97,16 +97,14 @@ struct GeneratorContractTests {
     @Test("Generated apps require the framework release, not the CLI release")
     func frameworkVersion() {
         let manifest = ProjectTemplates.packageSwift(appName: "Probe", includeDB: true, includeESW: true)
-        #expect(manifest.contains(#"swift-roost", from: "\#(RoostCLI.frameworkVersion)", traits: roostTraits)"#))
-        // The trait gives `roost spectro` Noora's output; it exists from Roost 2.1.3.
-        #expect(manifest.contains(#"[.defaults, "RichTerminal"]"#))
-        #expect(RoostCLI.frameworkVersion.compare("2.1.3", options: .numeric) != .orderedAscending)
+        #expect(manifest.contains(#"swift-roost", from: "\#(RoostCLI.frameworkVersion)")"#))
+        #expect(!manifest.contains("RichTerminal"))
     }
 
-    @Test("Spectro receives every argument, including help and version flags",
-          arguments: [["--help"], ["--version"], ["migrate", "down", "--step", "1"], []])
-    func spectroPassthrough(arguments: [String]) throws {
-        let command = try #require(try RoostCLI.parseAsRoot(["spectro"] + arguments) as? Spectro)
+    @Test("roost migrate passes every argument to the app, including help",
+          arguments: [["down", "--step", "2"], ["down", "--all"], ["status"], ["--help"], []])
+    func migratePassthrough(arguments: [String]) throws {
+        let command = try #require(try RoostCLI.parseAsRoot(["migrate"] + arguments) as? Migrate)
         #expect(command.arguments == arguments)
     }
 

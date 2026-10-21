@@ -4,27 +4,24 @@ import Foundation
 struct Migrate: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "migrate",
-        abstract: "Run database migrations",
-        subcommands: [
-            MigrateUp.self,
-            MigrateDown.self,
-            MigrateStatus.self,
-        ],
-        defaultSubcommand: MigrateUp.self
+        abstract: "Run database migrations with the app's configuration",
+        discussion: """
+            Passes every argument to the app's migrate command, so migrations use the server's database.
+
+              roost migrate                  apply pending migrations
+              roost migrate status
+              roost migrate down             roll back the newest migration
+              roost migrate down --step 2
+              roost migrate down --all
+            """
     )
-}
 
-struct MigrateUp: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "up", abstract: "Run pending migrations with the app's configuration")
-    func run() async throws { try runApp(["migrate", "up"]) }
-}
+    @Argument(parsing: .captureForPassthrough, help: "up (the default), down, or status, and their options.")
+    var arguments: [String] = []
 
-struct MigrateDown: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "down", abstract: "Rollback the last migration")
-    func run() async throws { try runApp(["migrate", "down"]) }
-}
-
-struct MigrateStatus: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "status", abstract: "Show migration status")
-    func run() async throws { try runApp(["migrate", "status"]) }
+    func run() async throws {
+        // Help needs no database.
+        let help = arguments.contains { ["help", "--help", "-h", "-help"].contains($0) }
+        try runApp(["migrate"] + (arguments.isEmpty ? ["up"] : arguments), database: !help)
+    }
 }
