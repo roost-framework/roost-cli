@@ -8,6 +8,8 @@
   routes` lists the app's routes, like `mix phx.routes`. Both need swift-roost
   2.4.0 or later and stop with an upgrade hint on an app that resolved an older
   release.
+- `roost gen html` and `roost gen json` no longer crash with "Can't read a
+  value from a parsable argument definition".
 - `roost server`, `roost migrate`, and `roost spectro` run the app's Postgres in
   a container, `roost-<app>-db`, with Apple's `container` or Docker, instead of
   the Postgres installed on the host. An explicit `DB_HOST` keeps the old
