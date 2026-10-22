@@ -101,6 +101,12 @@ struct GeneratorContractTests {
         #expect(!manifest.contains("RichTerminal"))
     }
 
+    @Test("Generated apps support the macOS release swift-roost requires")
+    func macOSPlatform() {
+        let manifest = ProjectTemplates.packageSwift(appName: "Probe", includeDB: true, includeESW: true)
+        #expect(manifest.contains(".macOS(.v15)"))
+    }
+
     @Test("roost migrate passes every argument to the app, including help",
           arguments: [["down", "--step", "2"], ["down", "--all"], ["status"], ["--help"], []])
     func migratePassthrough(arguments: [String]) throws {

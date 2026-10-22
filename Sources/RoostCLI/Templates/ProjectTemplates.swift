@@ -75,7 +75,7 @@ enum ProjectTemplates {
         let package = Package(
             name: "\(appName)",
             platforms: [
-                .macOS(.v14),
+                .macOS(.v15),
             ],
             dependencies: [
         \(deps)

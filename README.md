@@ -6,11 +6,11 @@ fronts the tools of Roost's companion libraries.
 
 ## Install
 
-You need Swift 6.3 or later on macOS 14+ or Linux.
+You need Swift 6.3 or later on macOS 15+ or Linux.
 
 ```sh
 brew install mint
-mint install roost-framework/roost-cli@3.0.0
+mint install roost-framework/roost-cli@3.0.1
 roost --version
 ```
 
@@ -20,7 +20,7 @@ Without Mint, for example on Linux, build from a checkout and copy
 `.build/release/roost` to a directory on your `PATH`:
 
 ```sh
-git clone --branch 3.0.0 --depth 1 https://github.com/roost-framework/roost-cli.git
+git clone --branch 3.0.1 --depth 1 https://github.com/roost-framework/roost-cli.git
 cd roost-cli
 swift build -c release --product roost
 ```
